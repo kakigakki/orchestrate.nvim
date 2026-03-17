@@ -32,8 +32,23 @@ function Actions.submit_prompt(store, text)
       content = content,
       created_at = timestamp(),
     })
-    state.status = "streaming"
+    state.status = "connecting"
     state.draft = { lines = {} }
+    state.meta.last_error = nil
+    return state
+  end)
+end
+
+function Actions.set_status(store, status)
+  store:update(function(state)
+    state.status = status
+    return state
+  end)
+end
+
+function Actions.clear_error(store)
+  store:update(function(state)
+    state.meta.last_error = nil
     return state
   end)
 end
@@ -50,6 +65,7 @@ function Actions.stream_start(store, payload)
       streaming = true,
     })
     state.status = "streaming"
+    state.meta.last_error = nil
     return state
   end)
 end
@@ -73,7 +89,11 @@ function Actions.stream_end(store)
         break
       end
     end
-    state.status = "idle"
+
+    if state.status ~= "error" then
+      state.status = "idle"
+    end
+
     return state
   end)
 end
@@ -85,7 +105,7 @@ function Actions.update_todos(store, todos)
       id = next_message_id("todo", state.messages),
       kind = "todo_updated",
       role = "system",
-      content = string.format("任务列表已更新，共 %d 项。", #state.todos),
+      content = string.format("Todo list updated (%d items).", #state.todos),
       created_at = timestamp(),
     })
     return state
@@ -99,7 +119,7 @@ function Actions.add_approval(store, approval)
       id = next_message_id("approval", state.messages),
       kind = "approval_requested",
       role = "system",
-      content = approval.title or "收到审批请求。",
+      content = approval.title or "Approval requested.",
       created_at = timestamp(),
     })
     state.status = "waiting_approval"
@@ -114,7 +134,7 @@ function Actions.add_review(store, review)
       id = next_message_id("review", state.messages),
       kind = "review_ready",
       role = "system",
-      content = review.title or "收到审查结果。",
+      content = review.title or "Review is ready.",
       created_at = timestamp(),
     })
     state.status = "reviewing"
@@ -134,6 +154,32 @@ end
 function Actions.reset_status(store)
   store:update(function(state)
     state.status = "idle"
+    return state
+  end)
+end
+
+function Actions.set_transport_meta(store, payload)
+  store:update(function(state)
+    state.meta = vim.tbl_extend("force", state.meta or {}, payload or {})
+    return state
+  end)
+end
+
+function Actions.set_error(store, payload)
+  store:update(function(state)
+    local error_message = (payload and payload.message) or "Unknown error."
+
+    state.status = "error"
+    state.meta.last_error = payload or { message = error_message }
+
+    table.insert(state.messages, {
+      id = next_message_id("error", state.messages),
+      kind = "error",
+      role = "system",
+      content = error_message,
+      created_at = timestamp(),
+    })
+
     return state
   end)
 end

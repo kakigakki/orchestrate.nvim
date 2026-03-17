@@ -1,36 +1,38 @@
 *orchestrate.nvim* *orchestrate*
 
-orchestrate.nvim                                        一个 Neovim Agent 工作区
+orchestrate.nvim                                        Agent workspace for Neovim
 
 ==============================================================================
-目录                                                        *orchestrate-contents*
+CONTENTS                                                     *orchestrate-contents*
 
-1. 简介....................................................|orchestrate-intro|
-2. 安装....................................................|orchestrate-install|
-3. 命令....................................................|orchestrate-commands|
-4. 配置....................................................|orchestrate-config|
-5. 使用....................................................|orchestrate-usage|
+1. Intro....................................................|orchestrate-intro|
+2. Install..................................................|orchestrate-install|
+3. Commands.................................................|orchestrate-commands|
+4. Config...................................................|orchestrate-config|
+5. Usage....................................................|orchestrate-usage|
 
 ==============================================================================
-简介                                                           *orchestrate-intro*
+INTRO                                                          *orchestrate-intro*
 
-orchestrate.nvim 不是聊天 UI，也不是终端包装器。
-它是一个基于 ACP 思路的 Agent Orchestration Workspace。
+orchestrate.nvim is an Agent Orchestration Workspace for Neovim.
 
-核心数据流：
+It is not a chat UI and it is not a terminal wrapper.
+
+Core flow:
 
     ACP -> Store -> Renderer -> Neovim Buffers/Windows
 
-主要特性：
+Key points:
 
-- 三栏布局：Browse / Todo / Input
-- Input buffer 使用 acwrite，执行 :w 发送
-- 所有状态更新都通过 actions 完成
-- renderer 只负责 render(session, bufnr)
-- 内置 mock ACP，开箱即可演示完整工作流
+- Three buffers: Browse / Todo / Input
+- Input buffer uses acwrite and sends on :w
+- State changes go through actions
+- Renderers only render session state
+- Default transport is Claude Code CLI
+- Mock transport is still available for development and tests
 
 ==============================================================================
-安装                                                         *orchestrate-install*
+INSTALL                                                      *orchestrate-install*
 
 lazy.nvim:
 
@@ -42,7 +44,7 @@ lazy.nvim:
   }
 <
 
-本地开发:
+Local development:
 
 >lua
   {
@@ -54,21 +56,28 @@ lazy.nvim:
 <
 
 ==============================================================================
-命令                                                       *orchestrate-commands*
+COMMANDS                                                    *orchestrate-commands*
 
 :OrchestrateOpen
-    打开工作区。
+    Open the workspace.
 
 :OrchestrateClose
-    关闭工作区。
+    Close the workspace.
 
 :OrchestrateSend [text]
-    直接发送文本；如果没有参数，则发送当前 Input buffer 内容。
+    Send text directly, or send the current Input buffer when no argument is
+    provided.
+
+:OrchestrateResume [text]
+    Resume the current Claude Code session using the stored session id.
+
+:OrchestrateContinue [text]
+    Continue the latest Claude Code session in the current working directory.
 
 ==============================================================================
-配置                                                         *orchestrate-config*
+CONFIG                                                        *orchestrate-config*
 
-默认配置：
+Default config:
 
 >lua
   require("orchestrate").setup({
@@ -81,20 +90,29 @@ lazy.nvim:
     ui = {
       input_filetype = "markdown",
     },
+    transport = {
+      name = "claude_code",
+      claude_code = {
+        command = "claude",
+        resume_strategy = "session_id",
+        fallback_to_mock = false,
+      },
+    },
     mock = {
-      enabled = true,
       chunk_delay = 160,
     },
   })
 <
 
 ==============================================================================
-使用                                                           *orchestrate-usage*
+USAGE                                                          *orchestrate-usage*
 
-1. 执行 :OrchestrateOpen
-2. 在 Input buffer 输入任务
-3. 执行 :w
-4. 在 Browse 查看事件流，在 Todo 查看结构化任务
+1. Run :OrchestrateOpen
+2. Type into the Input buffer
+3. Run :w
+4. Watch Browse for streaming output and Todo for structured updates
+
+Run |:checkhealth| orchestrate to verify Claude Code availability.
 
 ==============================================================================
 vim:tw=78:ts=8:noet:ft=help:norl:

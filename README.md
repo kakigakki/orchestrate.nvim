@@ -72,7 +72,13 @@ lua/orchestrate/
 {
   "kakigakki/orchestrate.nvim",
   main = "orchestrate",
-  cmd = { "OrchestrateOpen", "OrchestrateClose", "OrchestrateSend" },
+  cmd = {
+    "OrchestrateOpen",
+    "OrchestrateClose",
+    "OrchestrateSend",
+    "OrchestrateResume",
+    "OrchestrateContinue",
+  },
   opts = {},
 }
 ```
@@ -90,8 +96,15 @@ require("orchestrate").setup({
   ui = {
     input_filetype = "markdown",
   },
+  transport = {
+    name = "claude_code",
+    claude_code = {
+      command = "claude",
+      resume_strategy = "session_id",
+      fallback_to_mock = false,
+    },
+  },
   mock = {
-    enabled = true,
     chunk_delay = 160,
   },
 })
@@ -116,13 +129,16 @@ require("orchestrate").setup({
 - `:OrchestrateOpen`
 - `:OrchestrateClose`
 - `:OrchestrateSend [text]`
+- `:OrchestrateResume [text]`
+- `:OrchestrateContinue [text]`
 
 ## 开发说明
 
 - `plugin/orchestrate.lua` 提供标准插件入口
 - `setup()` 是幂等的，适合 `lazy.nvim` 的 `opts` 调用
 - `doc/orchestrate.txt` 提供 `:h orchestrate` 帮助文档
-- 当前 ACP 为 mock 实现，后续可以无缝替换真实传输层
+- `doc/future-spec.md` 记录后续功能式样与阶段规划
+- 当前默认 transport 为 Claude Code CLI，并保留 mock transport 作为开发测试用途
 
 ## 开源协作
 

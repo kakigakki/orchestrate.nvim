@@ -18,6 +18,8 @@ function M.render(session, bufnr)
     string.rep("=", 32),
     string.format("session: %s", session.id),
     string.format("status: %s", session.status),
+    string.format("transport: %s", (session.meta and session.meta.transport) or "unknown"),
+    string.format("transport_session_id: %s", (session.meta and session.meta.transport_session_id) or "-"),
     "",
   }
 
@@ -39,7 +41,13 @@ function M.render(session, bufnr)
   end
 
   if #session.messages == 0 then
-    table.insert(lines, "暂无事件。请在 Input 面板输入内容后执行 :w。")
+    table.insert(lines, "No events yet. Type into the Input buffer and use :w to send.")
+  end
+
+  if session.meta and session.meta.last_error and session.meta.last_error.message then
+    table.insert(lines, "")
+    table.insert(lines, "LAST ERROR")
+    table.insert(lines, session.meta.last_error.message)
   end
 
   vim.bo[bufnr].modifiable = true

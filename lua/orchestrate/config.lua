@@ -10,8 +10,20 @@ local defaults = {
   ui = {
     input_filetype = "markdown",
   },
+  transport = {
+    name = "claude_code",
+    claude_code = {
+      command = "claude",
+      resume_strategy = "session_id",
+      fallback_to_mock = false,
+      model = nil,
+      max_turns = nil,
+    },
+  },
+  debug = {
+    enabled = false,
+  },
   mock = {
-    enabled = true,
     chunk_delay = 160,
   },
 }

@@ -8,10 +8,10 @@ function M.render(session, bufnr)
   }
 
   if #session.todos == 0 then
-    table.insert(lines, "暂无任务。")
+    table.insert(lines, "No todos yet.")
   else
     for index, todo in ipairs(session.todos) do
-      table.insert(lines, string.format("%d. [%s] %s", index, todo.status or "todo", todo.title or "未命名任务"))
+      table.insert(lines, string.format("%d. [%s] %s", index, todo.status or "todo", todo.title or "Untitled todo"))
       if todo.detail and todo.detail ~= "" then
         table.insert(lines, "   " .. todo.detail)
       end
@@ -22,7 +22,7 @@ function M.render(session, bufnr)
   if #session.approvals > 0 then
     table.insert(lines, "Approvals:")
     for _, approval in ipairs(session.approvals) do
-      table.insert(lines, "- " .. (approval.title or "待审批事项"))
+      table.insert(lines, "- " .. (approval.title or "Pending approval"))
     end
     table.insert(lines, "")
   end
@@ -30,7 +30,7 @@ function M.render(session, bufnr)
   if #session.reviews > 0 then
     table.insert(lines, "Reviews:")
     for _, review in ipairs(session.reviews) do
-      table.insert(lines, "- " .. (review.title or "待审查事项"))
+      table.insert(lines, "- " .. (review.title or "Pending review"))
     end
   end
 

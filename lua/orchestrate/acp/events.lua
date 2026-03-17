@@ -6,6 +6,8 @@ local Events = {
   TODO_UPDATED = "todo_updated",
   APPROVAL_REQUESTED = "approval_requested",
   REVIEW_READY = "review_ready",
+  SESSION_UPDATED = "session_updated",
+  ERROR = "error",
 }
 
 return Events

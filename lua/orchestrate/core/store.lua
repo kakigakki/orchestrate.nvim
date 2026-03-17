@@ -16,6 +16,12 @@ local function create_initial_state()
     draft = {
       lines = {},
     },
+    meta = {
+      transport = "claude_code",
+      transport_session_id = nil,
+      last_request_id = nil,
+      last_error = nil,
+    },
   }
 end
 

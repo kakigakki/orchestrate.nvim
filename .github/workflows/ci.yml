@@ -31,6 +31,13 @@ jobs:
       - name: Check formatting
         run: stylua --check lua plugin
 
+      - name: Run tests
+        run: |
+          nvim --headless --clean -u NONE \
+            +"set rtp+=." \
+            +"luafile tests/run.lua" \
+            +q
+
       - name: Validate plugin loads
         run: |
           nvim --headless --clean -u NONE \
