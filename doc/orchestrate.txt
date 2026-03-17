@@ -1,0 +1,100 @@
+*orchestrate.nvim* *orchestrate*
+
+orchestrate.nvim                                        一个 Neovim Agent 工作区
+
+==============================================================================
+目录                                                        *orchestrate-contents*
+
+1. 简介....................................................|orchestrate-intro|
+2. 安装....................................................|orchestrate-install|
+3. 命令....................................................|orchestrate-commands|
+4. 配置....................................................|orchestrate-config|
+5. 使用....................................................|orchestrate-usage|
+
+==============================================================================
+简介                                                           *orchestrate-intro*
+
+orchestrate.nvim 不是聊天 UI，也不是终端包装器。
+它是一个基于 ACP 思路的 Agent Orchestration Workspace。
+
+核心数据流：
+
+    ACP -> Store -> Renderer -> Neovim Buffers/Windows
+
+主要特性：
+
+- 三栏布局：Browse / Todo / Input
+- Input buffer 使用 acwrite，执行 :w 发送
+- 所有状态更新都通过 actions 完成
+- renderer 只负责 render(session, bufnr)
+- 内置 mock ACP，开箱即可演示完整工作流
+
+==============================================================================
+安装                                                         *orchestrate-install*
+
+lazy.nvim:
+
+>lua
+  {
+    "kakigakki/orchestrate.nvim",
+    main = "orchestrate",
+    opts = {},
+  }
+<
+
+本地开发:
+
+>lua
+  {
+    dir = "C:/orchestrate",
+    name = "orchestrate.nvim",
+    main = "orchestrate",
+    opts = {},
+  }
+<
+
+==============================================================================
+命令                                                       *orchestrate-commands*
+
+:OrchestrateOpen
+    打开工作区。
+
+:OrchestrateClose
+    关闭工作区。
+
+:OrchestrateSend [text]
+    直接发送文本；如果没有参数，则发送当前 Input buffer 内容。
+
+==============================================================================
+配置                                                         *orchestrate-config*
+
+默认配置：
+
+>lua
+  require("orchestrate").setup({
+    layout = {
+      browse_width = 0.7,
+      todo_height = 0.5,
+      min_browse_width = 40,
+      min_sidebar_height = 6,
+    },
+    ui = {
+      input_filetype = "markdown",
+    },
+    mock = {
+      enabled = true,
+      chunk_delay = 160,
+    },
+  })
+<
+
+==============================================================================
+使用                                                           *orchestrate-usage*
+
+1. 执行 :OrchestrateOpen
+2. 在 Input buffer 输入任务
+3. 执行 :w
+4. 在 Browse 查看事件流，在 Todo 查看结构化任务
+
+==============================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:
