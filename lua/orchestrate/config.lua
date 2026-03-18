@@ -22,6 +22,8 @@ local defaults = {
   },
   debug = {
     enabled = false,
+    log_level = "INFO",
+    to_file = false,
   },
   mock = {
     chunk_delay = 160,

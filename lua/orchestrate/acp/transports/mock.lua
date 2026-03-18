@@ -23,7 +23,11 @@ local function build_mock_todos(prompt)
   return {
     { title = "Parse user goal", status = "done", detail = "Input was captured successfully" },
     { title = "Generate response", status = "doing", detail = "Streaming mock output" },
-    { title = "Wait for next step", status = "todo", detail = vim.trim(prompt) ~= "" and "Ready for follow-up work" or "Waiting for more input" },
+    {
+      title = "Wait for next step",
+      status = "todo",
+      detail = vim.trim(prompt) ~= "" and "Ready for follow-up work" or "Waiting for more input",
+    },
   }
 end
 
@@ -80,9 +84,10 @@ end
 
 function MockTransport:send_message(text, context)
   local request_id = string.format("mock-request-%d", vim.loop.hrtime())
-  local session_id = (context and context.transport_session_id) or string.format("mock-session-%d", vim.loop.hrtime())
+  local session_id = (context and context.transport_session_id)
+    or string.format("mock-session-%d", vim.loop.hrtime())
   local reply_chunks = build_mock_reply(text)
-  local chunk_delay = (((self.opts or {}).mock or {}).chunk_delay) or 160
+  local chunk_delay = ((self.opts or {}).mock or {}).chunk_delay or 160
 
   self.current_request_id = request_id
   self.cancelled = false

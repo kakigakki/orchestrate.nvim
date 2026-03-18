@@ -19,7 +19,10 @@ function M.render(session, bufnr)
     string.format("session: %s", session.id),
     string.format("status: %s", session.status),
     string.format("transport: %s", (session.meta and session.meta.transport) or "unknown"),
-    string.format("transport_session_id: %s", (session.meta and session.meta.transport_session_id) or "-"),
+    string.format(
+      "transport_session_id: %s",
+      (session.meta and session.meta.transport_session_id) or "-"
+    ),
     "",
   }
 

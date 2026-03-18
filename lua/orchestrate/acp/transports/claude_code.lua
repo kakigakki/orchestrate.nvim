@@ -248,7 +248,8 @@ function ClaudeCodeTransport:handle_json_line(line)
   if event_type == "result" then
     if payload.is_error then
       self:emit(Events.ERROR, {
-        message = type(payload.result) == "string" and payload.result or "Claude Code returned an error result.",
+        message = type(payload.result) == "string" and payload.result
+          or "Claude Code returned an error result.",
         detail = payload,
       })
       return

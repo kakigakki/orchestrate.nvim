@@ -12,6 +12,7 @@ local function create_initial_state()
     messages = {},
     todos = {},
     approvals = {},
+    resolved_approvals = {},
     reviews = {},
     draft = {
       lines = {},

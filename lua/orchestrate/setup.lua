@@ -4,11 +4,14 @@ local Client = require("orchestrate.acp.client")
 local Events = require("orchestrate.acp.events")
 local Builtins = require("orchestrate.acp.builtins")
 local Config = require("orchestrate.config")
+local Logger = require("orchestrate.utils.logger")
 local BrowseRenderer = require("orchestrate.renderers.browse")
 local TodoRenderer = require("orchestrate.renderers.todo")
 local InputRenderer = require("orchestrate.renderers.input")
 local Buffers = require("orchestrate.ui.buffers")
 local Layout = require("orchestrate.ui.layout")
+local ApprovalUI = require("orchestrate.ui.approval")
+local ReviewUI = require("orchestrate.ui.review")
 local Commands = require("orchestrate.commands")
 
 local M = {}
@@ -49,11 +52,14 @@ local function ensure_app()
 
   if not state.store then
     state.store = Store.new()
+    Logger.debug("Store created with id: %s", state.store:get_state().id)
   end
 
   if not state.client then
     state.client = Client.new(Config.get())
     state.client:set_dispatch(function(event_name, payload)
+      Logger.debug("Event received: %s", event_name)
+
       if event_name == Events.ASSISTANT_STREAM_START then
         Actions.stream_start(state.store, payload)
       elseif event_name == Events.ASSISTANT_STREAM_DELTA then
@@ -64,13 +70,21 @@ local function ensure_app()
         Actions.update_todos(state.store, payload)
       elseif event_name == Events.APPROVAL_REQUESTED then
         Actions.add_approval(state.store, payload)
+        notify(
+          "orchestrate.nvim: Approval requested - use :OrchestrateApprove or :OrchestrateReject",
+          vim.log.levels.WARN
+        )
       elseif event_name == Events.REVIEW_READY then
         Actions.add_review(state.store, payload)
+        notify("orchestrate.nvim: Review ready - use :OrchestrateReviewJump", vim.log.levels.INFO)
       elseif event_name == Events.SESSION_UPDATED then
         Actions.set_transport_meta(state.store, payload)
       elseif event_name == Events.ERROR then
         Actions.set_error(state.store, payload)
-        notify("orchestrate.nvim: " .. ((payload and payload.message) or "Unknown error."), vim.log.levels.ERROR)
+        notify(
+          "orchestrate.nvim: " .. ((payload and payload.message) or "Unknown error."),
+          vim.log.levels.ERROR
+        )
       end
     end)
   end
@@ -128,6 +142,8 @@ local function do_submit(text, mode)
     return false
   end
 
+  Logger.info("Submitting prompt (mode=%s): %s", mode, content:sub(1, 50))
+
   Actions.submit_prompt(state.store, content)
   clear_input_modified()
 
@@ -150,7 +166,11 @@ end
 function M.open()
   ensure_app()
 
-  if state.windows and state.windows.tabpage and vim.api.nvim_tabpage_is_valid(state.windows.tabpage) then
+  if
+    state.windows
+    and state.windows.tabpage
+    and vim.api.nvim_tabpage_is_valid(state.windows.tabpage)
+  then
     vim.api.nvim_set_current_tabpage(state.windows.tabpage)
     if vim.api.nvim_win_is_valid(state.windows.input) then
       vim.api.nvim_set_current_win(state.windows.input)
@@ -168,6 +188,8 @@ function M.open()
   state.unsubscribe = state.store:subscribe(render_all)
   set_input_autocmd(M)
   render_all(state.store:get_state())
+
+  Logger.info("Workspace opened")
 end
 
 function M.close()
@@ -188,6 +210,8 @@ function M.close()
   Layout.close(state.windows)
   state.windows = nil
   state.buffers = nil
+
+  Logger.info("Workspace closed")
 end
 
 function M.submit(text)
@@ -225,10 +249,104 @@ function M.continue_from_input()
   return M.continue_last(get_input_text())
 end
 
+-- Approval 交互
+function M.approve()
+  ensure_app()
+  local session = state.store:get_state()
+  ApprovalUI.approve_first(session, function(approval_id, decision)
+    Actions.resolve_approval(state.store, approval_id, decision)
+    Logger.info("Approval %s: %s", approval_id, decision)
+  end)
+end
+
+function M.reject()
+  ensure_app()
+  local session = state.store:get_state()
+  ApprovalUI.reject_first(session, function(approval_id, decision)
+    Actions.resolve_approval(state.store, approval_id, decision)
+    Logger.info("Approval %s: %s", approval_id, decision)
+  end)
+end
+
+function M.select_approval()
+  ensure_app()
+  local session = state.store:get_state()
+  ApprovalUI.select_and_resolve(session, function(approval_id, decision)
+    Actions.resolve_approval(state.store, approval_id, decision)
+    Logger.info("Approval %s: %s", approval_id, decision)
+  end)
+end
+
+-- Review 交互
+function M.review_jump()
+  ensure_app()
+  local session = state.store:get_state()
+  ReviewUI.jump_to_first_unseen(session, function(review_id)
+    Actions.mark_review_seen(state.store, review_id)
+  end)
+end
+
+function M.review_select()
+  ensure_app()
+  local session = state.store:get_state()
+  ReviewUI.select_and_jump(session, function(review_id)
+    Actions.mark_review_seen(state.store, review_id)
+  end)
+end
+
+function M.review_quickfix()
+  ensure_app()
+  local session = state.store:get_state()
+  ReviewUI.to_quickfix(session, function()
+    Actions.mark_all_reviews_seen(state.store)
+  end)
+end
+
+-- 错误恢复
+function M.retry()
+  ensure_app()
+  local session = state.store:get_state()
+
+  if session.status ~= "error" then
+    notify("orchestrate.nvim: No error to retry", vim.log.levels.INFO)
+    return false
+  end
+
+  Actions.retry_last(state.store)
+
+  -- 获取最后一条用户消息并重试
+  local last_user_message = nil
+  for i = #session.messages, 1, -1 do
+    if session.messages[i].kind == "user_submit" then
+      last_user_message = session.messages[i].content
+      break
+    end
+  end
+
+  if last_user_message then
+    notify("orchestrate.nvim: Retrying last message...", vim.log.levels.INFO)
+    return do_submit(last_user_message, "send")
+  else
+    notify("orchestrate.nvim: No message to retry", vim.log.levels.WARN)
+    return false
+  end
+end
+
 function M.setup(opts)
   Config.setup(opts)
+
+  -- 初始化日志
+  local debug_opts = (opts and opts.debug) or {}
+  Logger.setup({
+    enabled = debug_opts.enabled or false,
+    level = debug_opts.log_level or "INFO",
+    to_file = debug_opts.to_file or false,
+  })
+
   ensure_app()
   Commands.setup(M)
+
+  Logger.info("orchestrate.nvim setup complete")
 end
 
 function M.get_session()

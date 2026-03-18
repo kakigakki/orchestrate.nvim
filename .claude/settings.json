@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(stylua:*)",
+      "Bash(nvim --headless*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(ls*)",
+      "Bash(cat*)",
+      "Bash(which*)",
+      "Bash(mkdir*)"
+    ]
+  }
+}
