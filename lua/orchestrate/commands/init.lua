@@ -110,6 +110,30 @@ function M.setup(app)
     desc = "Retry after an error",
   })
 
+  -- 会话管理命令
+  vim.api.nvim_create_user_command("OrchestrateRestore", function(opts)
+    if opts.args ~= "" then
+      app.restore_session(opts.args)
+    else
+      app.restore_session()
+    end
+  end, {
+    nargs = "?",
+    desc = "Restore previous session (optionally specify session_id)",
+  })
+
+  vim.api.nvim_create_user_command("OrchestrateSessions", function()
+    app.list_sessions()
+  end, {
+    desc = "List and select from saved sessions",
+  })
+
+  vim.api.nvim_create_user_command("OrchestrateNew", function()
+    app.new_session()
+  end, {
+    desc = "Start a new session (clear current)",
+  })
+
   registered = true
 end
 

@@ -93,7 +93,11 @@ local function write_log(level, msg, ...)
     elseif level == LEVELS.ERROR then
       vim_level = vim.log.levels.ERROR
     end
-    vim.notify(formatted, vim_level)
+    -- 使用 vim.schedule 确保在主线程调用 vim.notify
+    -- 避免在 libuv callback 中调用时报错
+    vim.schedule(function()
+      vim.notify(formatted, vim_level)
+    end)
   end
 end
 

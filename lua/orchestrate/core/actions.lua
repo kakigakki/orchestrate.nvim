@@ -1,7 +1,7 @@
 local Actions = {}
 
 local function timestamp()
-  return os.date("%H:%M:%S")
+  return os.time()
 end
 
 local function next_message_id(prefix, collection)
@@ -53,6 +53,26 @@ function Actions.clear_error(store)
   end)
 end
 
+function Actions.connected(store, payload)
+  store:update(function(state)
+    if state.status == "connecting" then
+      state.status = "streaming"
+    end
+    table.insert(state.messages, {
+      id = next_message_id("system", state.messages),
+      kind = "system_info",
+      role = "system",
+      content = string.format("Connected to %s", payload.model or "Claude"),
+      created_at = timestamp(),
+      meta = {
+        model = payload.model,
+        cwd = payload.cwd,
+      },
+    })
+    return state
+  end)
+end
+
 function Actions.stream_start(store, payload)
   store:update(function(state)
     table.insert(state.messages, {
@@ -61,6 +81,7 @@ function Actions.stream_start(store, payload)
       role = "assistant",
       title = payload.title or "Assistant",
       content = "",
+      blocks = {},
       created_at = timestamp(),
       streaming = true,
     })
@@ -80,12 +101,17 @@ function Actions.stream_delta(store, payload)
   end)
 end
 
-function Actions.stream_end(store)
+function Actions.stream_end(store, payload)
   store:update(function(state)
     for index = #state.messages, 1, -1 do
       local message = state.messages[index]
       if message.kind == "assistant_stream" and message.streaming then
         message.streaming = false
+        if payload then
+          message.cost_usd = payload.cost_usd
+          message.num_turns = payload.num_turns
+          message.duration_ms = payload.duration_ms
+        end
         break
       end
     end
@@ -94,6 +120,111 @@ function Actions.stream_end(store)
       state.status = "idle"
     end
 
+    return state
+  end)
+end
+
+-- Content block handling
+function Actions.content_block_start(store, payload)
+  store:update(function(state)
+    local message = find_message(state.messages, payload.id)
+    if message then
+      message.blocks = message.blocks or {}
+      local index = (payload.index or #message.blocks) + 1
+      message.blocks[index] = {
+        type = payload.block_type or "text",
+        content = "",
+        streaming = true,
+      }
+      message.current_block_index = index
+    end
+    return state
+  end)
+end
+
+function Actions.content_block_delta(store, payload)
+  store:update(function(state)
+    local message = find_message(state.messages, payload.id)
+    if message and message.blocks then
+      local index = message.current_block_index or #message.blocks
+      local block = message.blocks[index]
+      if block then
+        block.content = (block.content or "") .. (payload.delta or "")
+        -- Also append to main content for text blocks
+        if block.type == "text" then
+          message.content = (message.content or "") .. (payload.delta or "")
+        end
+      end
+    end
+    return state
+  end)
+end
+
+function Actions.content_block_end(store, payload)
+  store:update(function(state)
+    local message = find_message(state.messages, payload.id)
+    if message and message.blocks then
+      local index = message.current_block_index or #message.blocks
+      local block = message.blocks[index]
+      if block then
+        block.streaming = false
+      end
+    end
+    return state
+  end)
+end
+
+-- Tool use handling
+function Actions.tool_use_start(store, payload)
+  store:update(function(state)
+    local message = find_message(state.messages, payload.id)
+    if message then
+      message.blocks = message.blocks or {}
+      local index = (payload.index or #message.blocks) + 1
+      message.blocks[index] = {
+        type = "tool_use",
+        tool_use_id = payload.tool_use_id,
+        tool_name = payload.tool_name,
+        input = payload.input,
+        input_json = "",
+        streaming = true,
+      }
+      message.current_block_index = index
+    end
+    return state
+  end)
+end
+
+function Actions.tool_use_end(store, payload)
+  store:update(function(state)
+    local message = find_message(state.messages, payload.id)
+    if message and message.blocks then
+      for _, block in ipairs(message.blocks) do
+        if block.type == "tool_use" and block.tool_use_id == payload.tool_use_id then
+          block.streaming = false
+          break
+        end
+      end
+    end
+    return state
+  end)
+end
+
+function Actions.tool_result(store, payload)
+  store:update(function(state)
+    -- Find the message with the matching tool_use
+    for i = #state.messages, 1, -1 do
+      local message = state.messages[i]
+      if message.blocks then
+        for _, block in ipairs(message.blocks) do
+          if block.type == "tool_use" and block.tool_use_id == payload.tool_use_id then
+            block.result = payload.content
+            block.is_error = payload.is_error
+            return state
+          end
+        end
+      end
+    end
     return state
   end)
 end

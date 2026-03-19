@@ -86,4 +86,18 @@ function Client:healthcheck()
   return self.transport:healthcheck()
 end
 
+function Client:respond_approval(approval_id, accepted)
+  if not self.transport then
+    return false, "transport_not_configured"
+  end
+
+  if self.transport.respond_approval then
+    return self.transport:respond_approval(approval_id, accepted)
+  end
+
+  -- 如果 transport 不支持响应 approval，直接返回 true
+  -- 因为有些 transport 不需要额外响应（如已经通过配置预先授权）
+  return true
+end
+
 return Client
